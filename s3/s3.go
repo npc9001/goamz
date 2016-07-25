@@ -11,12 +11,13 @@
 package s3
 
 import (
+	"sort"
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
-	"github.com/mitchellh/goamz/aws"
+	"github.com/EyciaZhou/goamz/aws"
 	"io"
 	"io/ioutil"
 	"log"
@@ -687,6 +688,39 @@ func amazonEscape(s string) string {
 	return string(t)
 }
 
+// Encode encodes the values into ``URL encoded'' form
+// ("bar=baz&foo=quux") sorted by key.
+func Encode(v url.Values) string {
+	if v == nil {
+		return ""
+	}
+	var buf bytes.Buffer
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	if _, ok := v["uploads"]; ok {
+		buf.WriteString("uploads")
+		delete(v, "uploads")
+	}
+
+	for _, k := range keys {
+		vs := v[k]
+		prefix := url.QueryEscape(k)
+		for _, v := range vs {
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(prefix + "=")
+			buf.WriteString(url.QueryEscape(v))
+
+		}
+	}
+	return buf.String()
+}
+
 // url returns url to resource, either full (with host/scheme) or
 // partial for HTTP request
 func (req *request) url(full bool) (*url.URL, error) {
@@ -699,7 +733,7 @@ func (req *request) url(full bool) (*url.URL, error) {
 	if full {
 		u.Opaque = "//" + u.Host + u.Opaque
 	}
-	u.RawQuery = req.params.Encode()
+	u.RawQuery = Encode(req.params)
 
 	return u, nil
 }
