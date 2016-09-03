@@ -182,6 +182,7 @@ func (m *Multi) putPart(n int, r io.ReadSeeker, partSize int64, md5b64 string) (
 		if err != nil {
 			return Part{}, err
 		}
+		resp.Body.Close()
 		etag := resp.Header.Get("ETag")
 		if etag == "" {
 			return Part{}, errors.New("part upload succeeded with no ETag")
@@ -356,6 +357,8 @@ func (m *Multi) Complete(parts []Part) error {
 	if err != nil {
 		return err
 	}
+
+	data = bytes.Replace(data, []byte("&#34;"), []byte("&quot;"), -1)
 	for attempt := attempts.Start(); attempt.Next(); {
 		req := &request{
 			method:  "POST",

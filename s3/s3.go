@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"encoding/hex"
 )
 
 const debug = false
@@ -54,7 +55,7 @@ type Owner struct {
 }
 
 var attempts = aws.AttemptStrategy{
-	Min:   5,
+	Min:   8,
 	Total: 5 * time.Second,
 	Delay: 200 * time.Millisecond,
 }
@@ -367,6 +368,43 @@ func (b *Bucket) Copy(oldPath, newPath string, perm ACL) error {
 	panic("unreachable")
 }
 
+/*
+ChangeMd5 - change objects's md5
+*/
+func (b *Bucket) ChangeMd5(Path string, md5 []byte, perm ACL) error {
+	if !strings.HasPrefix(Path, "/") {
+		Path = "/" + Path
+	}
+
+	req := &request{
+		method: "PUT",
+		bucket: b.Name,
+		path:   Path,
+		headers: map[string][]string{
+			"x-amz-copy-source": {amazonEscape("/" + b.Name + Path)},
+			//"x-amz-acl":         {string(perm)},
+			"x-amz-meta-s2-md5" : {hex.EncodeToString(md5)},
+		},
+	}
+
+	err := b.S3.prepare(req)
+	if err != nil {
+		return err
+	}
+
+	for attempt := attempts.Start(); attempt.Next(); {
+		_, err = b.S3.run(req, nil)
+		if shouldRetry(err) && attempt.HasNext() {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	panic("unreachable")
+}
+
 // Del removes an object from the S3 bucket.
 //
 // See http://goo.gl/APeTt for details.
@@ -567,6 +605,44 @@ func (b *Bucket) GetBucketContents() (*map[string]Key, error) {
 }
 
 // Get metadata from the key without returning the key content
+func (b *Bucket) GetACL(path string) (*Key, error) {
+	req := &request{
+		bucket: b.Name,
+		path:   path,
+		method: "GET",
+		params: url.Values{
+			"acl" : {""},
+		},
+	}
+	err := b.S3.prepare(req)
+	if err != nil {
+		return nil, err
+	}
+	key := &Key{}
+	for attempt := attempts.Start(); attempt.Next(); {
+		resp, err := b.S3.run(req, nil)
+		if shouldRetry(err) && attempt.HasNext() {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		key.Key = path
+		key.LastModified = resp.Header.Get("Last-Modified")
+		key.ETag = resp.Header.Get("ETag")
+		contentLength := resp.Header.Get("Content-Length")
+		size, err := strconv.ParseInt(contentLength, 10, 64)
+		if err != nil {
+			return key, fmt.Errorf("bad s3 content-length %v: %v",
+				contentLength, err)
+		}
+		key.Size = size
+		return key, nil
+	}
+	panic("unreachable")
+}
+
+// Get metadata from the key without returning the key content
 func (b *Bucket) GetKey(path string) (*Key, error) {
 	req := &request{
 		bucket: b.Name,
@@ -704,6 +780,11 @@ func Encode(v url.Values) string {
 	if _, ok := v["uploads"]; ok {
 		buf.WriteString("uploads")
 		delete(v, "uploads")
+	}
+
+	if _, ok := v["acl"]; ok {
+		buf.WriteString("acl")
+		delete(v, "acl")
 	}
 
 	for _, k := range keys {
@@ -917,6 +998,9 @@ func shouldRetry(err error) bool {
 		case "InternalError", "NoSuchUpload", "NoSuchBucket":
 			return true
 		}
+	}
+	if strings.Contains(err.Error(), "request canceled") {
+		return true
 	}
 	return false
 }
