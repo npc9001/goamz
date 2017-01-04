@@ -55,7 +55,7 @@ type Owner struct {
 }
 
 var attempts = aws.AttemptStrategy{
-	Min:   8,
+	Min:   30,
 	Total: 5 * time.Second,
 	Delay: 200 * time.Millisecond,
 }
@@ -368,6 +368,42 @@ func (b *Bucket) Copy(oldPath, newPath string, perm ACL) error {
 	panic("unreachable")
 }
 
+func (b *Bucket) AddExt(Path string, kvs map[string]string, perm ACL) error {
+	if !strings.HasPrefix(Path, "/") {
+		Path = "/" + Path
+	}
+
+	req := &request{
+		method: "PUT",
+		bucket: b.Name,
+		path:   Path,
+		headers: map[string][]string{
+			"x-amz-copy-source": {amazonEscape("/" + b.Name + Path)},
+		},
+	}
+
+	for k, v := range kvs {
+		req.headers["x-amz-meta-s2-" + k] = []string{v}
+	}
+
+	err := b.S3.prepare(req)
+	if err != nil {
+		return err
+	}
+
+	for attempt := attempts.Start(); attempt.Next(); {
+		_, err = b.S3.run(req, nil)
+		if shouldRetry(err) && attempt.HasNext() {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	panic("unreachable")
+}
+
 /*
 ChangeMd5 - change objects's md5
 */
@@ -393,13 +429,14 @@ func (b *Bucket) ChangeMd5(Path string, md5 []byte, perm ACL) error {
 	}
 
 	for attempt := attempts.Start(); attempt.Next(); {
-		_, err = b.S3.run(req, nil)
+		resp, err := b.S3.run(req, nil)
 		if shouldRetry(err) && attempt.HasNext() {
 			continue
 		}
 		if err != nil {
 			return err
 		}
+		resp.Body.Close()
 		return nil
 	}
 	panic("unreachable")
@@ -627,10 +664,11 @@ func (b *Bucket) GetACL(path string) (*Key, error) {
 		if err != nil {
 			return nil, err
 		}
+		resp.Body.Close()
 		key.Key = path
 		key.LastModified = resp.Header.Get("Last-Modified")
 		key.ETag = resp.Header.Get("ETag")
-		contentLength := resp.Header.Get("Content-Length")
+		contentLength := resp.Header.Get("X-Amz-Meta-S2-Size")
 		size, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
 			return key, fmt.Errorf("bad s3 content-length %v: %v",
