@@ -407,7 +407,7 @@ func (b *Bucket) AddExt(Path string, kvs map[string]string, perm ACL) error {
 /*
 ChangeMd5 - change objects's md5
 */
-func (b *Bucket) ChangeMd5(Path string, md5 []byte, perm ACL) error {
+func (b *Bucket) ChangeMd5(Path string, contentType string, md5 []byte) error {
 	if !strings.HasPrefix(Path, "/") {
 		Path = "/" + Path
 	}
@@ -417,9 +417,11 @@ func (b *Bucket) ChangeMd5(Path string, md5 []byte, perm ACL) error {
 		bucket: b.Name,
 		path:   Path,
 		headers: map[string][]string{
-			"x-amz-copy-source": {amazonEscape("/" + b.Name + Path)},
+			"x-amz-metadata-directive":	{"REPLACE"},
+			"x-amz-copy-source":		{amazonEscape("/" + b.Name + Path)},
+			"ContentType":			{contentType},
 			//"x-amz-acl":         {string(perm)},
-			"x-amz-meta-s2-md5" : {hex.EncodeToString(md5)},
+			"x-amz-meta-s2-md5" :		{hex.EncodeToString(md5)},
 		},
 	}
 
@@ -1047,3 +1049,4 @@ func hasCode(err error, code string) bool {
 	s3err, ok := err.(*Error)
 	return ok && s3err.Code == code
 }
+
