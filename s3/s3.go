@@ -11,10 +11,10 @@
 package s3
 
 import (
-	"sort"
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"github.com/EyciaZhou/goamz/aws"
@@ -25,10 +25,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"encoding/hex"
 )
 
 const debug = false
@@ -383,7 +383,7 @@ func (b *Bucket) AddExt(Path string, kvs map[string]string, perm ACL) error {
 	}
 
 	for k, v := range kvs {
-		req.headers["x-amz-meta-s2-" + k] = []string{v}
+		req.headers["x-amz-meta-s2-"+k] = []string{v}
 	}
 
 	err := b.S3.prepare(req)
@@ -417,11 +417,11 @@ func (b *Bucket) ChangeMd5(Path string, contentType string, md5 []byte) error {
 		bucket: b.Name,
 		path:   Path,
 		headers: map[string][]string{
-			"x-amz-metadata-directive":	{"REPLACE"},
-			"x-amz-copy-source":		{amazonEscape("/" + b.Name + Path)},
-			"ContentType":			{contentType},
+			"x-amz-metadata-directive": {"REPLACE"},
+			"x-amz-copy-source":        {amazonEscape("/" + b.Name + Path)},
+			"ContentType":              {contentType},
 			//"x-amz-acl":         {string(perm)},
-			"x-amz-meta-s2-md5" :		{hex.EncodeToString(md5)},
+			"x-amz-meta-s2-md5": {hex.EncodeToString(md5)},
 		},
 	}
 
@@ -650,7 +650,7 @@ func (b *Bucket) GetACL(path string) (*Key, error) {
 		path:   path,
 		method: "GET",
 		params: url.Values{
-			"acl" : {""},
+			"acl": {""},
 		},
 	}
 	err := b.S3.prepare(req)
@@ -676,6 +676,7 @@ func (b *Bucket) GetACL(path string) (*Key, error) {
 			return key, fmt.Errorf("bad s3 content-length %v: %v",
 				contentLength, err)
 		}
+
 		key.Size = size
 		return key, nil
 	}
@@ -702,6 +703,7 @@ func (b *Bucket) GetKey(path string) (*Key, error) {
 		if err != nil {
 			return nil, err
 		}
+		resp.Body.Close()
 		key.Key = path
 		key.LastModified = resp.Header.Get("Last-Modified")
 		key.ETag = resp.Header.Get("ETag")
@@ -1049,4 +1051,3 @@ func hasCode(err error, code string) bool {
 	s3err, ok := err.(*Error)
 	return ok && s3err.Code == code
 }
-
