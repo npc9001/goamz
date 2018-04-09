@@ -707,7 +707,7 @@ func (b *Bucket) GetKey(path string) (*Key, error) {
 		key.Key = path
 		key.LastModified = resp.Header.Get("Last-Modified")
 		key.ETag = resp.Header.Get("ETag")
-		contentLength := resp.Header.Get("Content-Length")
+		contentLength := resp.Header.Get("X-Amz-Meta-S2-Size")
 		size, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
 			return key, fmt.Errorf("bad s3 content-length %v: %v",

@@ -344,7 +344,7 @@ func (p completeParts) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // final object. This operation may take several minutes.
 //
 // See http://goo.gl/2Z7Tw for details.
-func (m *Multi) Complete(parts []Part) error {
+func (m *Multi) Complete(parts []Part) ([]byte, error) {
 	params := map[string][]string{
 		"uploadId": {m.UploadId},
 	}
@@ -355,7 +355,7 @@ func (m *Multi) Complete(parts []Part) error {
 	sort.Sort(c.Parts)
 	data, err := xml.Marshal(&c)
 	if err != nil {
-		return err
+		return data, err
 	}
 
 	data = bytes.Replace(data, []byte("&#34;"), []byte("&quot;"), -1)
@@ -371,7 +371,7 @@ func (m *Multi) Complete(parts []Part) error {
 		if shouldRetry(err) && attempt.HasNext() {
 			continue
 		}
-		return err
+		return data, err
 	}
 	panic("unreachable")
 }
