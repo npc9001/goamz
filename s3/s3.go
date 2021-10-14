@@ -17,7 +17,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"github.com/EyciaZhou/goamz/aws"
 	"io"
 	"io/ioutil"
 	"log"
@@ -29,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/EyciaZhou/goamz/aws"
 )
 
 const debug = false
@@ -423,6 +424,69 @@ func (b *Bucket) ChangeMd5(Path string, contentType string, md5 []byte) error {
 			//"x-amz-acl":         {string(perm)},
 			"x-amz-meta-s2-md5": {hex.EncodeToString(md5)},
 		},
+	}
+
+	err := b.S3.prepare(req)
+	if err != nil {
+		return err
+	}
+
+	for attempt := attempts.Start(); attempt.Next(); {
+		resp, err := b.S3.run(req, nil)
+		if shouldRetry(err) && attempt.HasNext() {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		resp.Body.Close()
+		return nil
+	}
+	panic("unreachable")
+}
+
+/*
+UpdateMetadata - update objects's metadata.
+*/
+func (b *Bucket) UpdateMetadata(path string, metadata map[string]string, remainOldMeta bool) error {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	var headers http.Header
+
+	if remainOldMeta {
+		res, err := b.Head(path)
+		if err != nil {
+			return err
+		}
+
+		resHeader := res.Header
+		res.Body.Close()
+
+		for k := range resHeader {
+			if strings.HasPrefix(k, "x-amz-meta") {
+				headers.Set(k, resHeader.Get(k))
+			}
+		}
+	}
+
+	for k, v := range map[string]string{
+		"x-amz-metadata-directive": "REPLACE",
+		"x-amz-copy-source":        amazonEscape("/" + b.Name + path),
+	} {
+		headers.Set(k, v)
+	}
+
+	for k, v := range metadata {
+		headers.Set(k, v)
+	}
+
+	req := &request{
+		method:  "PUT",
+		bucket:  b.Name,
+		path:    path,
+		headers: headers,
 	}
 
 	err := b.S3.prepare(req)
