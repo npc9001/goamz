@@ -17,7 +17,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"github.com/EyciaZhou/goamz/aws"
 	"io"
 	"io/ioutil"
 	"log"
@@ -29,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/EyciaZhou/goamz/aws"
 )
 
 const debug = false
@@ -426,6 +427,65 @@ func (b *Bucket) ChangeMd5(Path string, contentType string, md5 []byte) error {
 	}
 
 	err := b.S3.prepare(req)
+	if err != nil {
+		return err
+	}
+
+	for attempt := attempts.Start(); attempt.Next(); {
+		resp, err := b.S3.run(req, nil)
+		if shouldRetry(err) && attempt.HasNext() {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		resp.Body.Close()
+		return nil
+	}
+	panic("unreachable")
+}
+
+/*
+UpsertMetadata - upsert objects's metadata, metadata's key must begins with prefix: 'x-amz-meta-'
+*/
+func (b *Bucket) UpsertMetadata(path string, contentType string, metadata map[string]string) error {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	for k := range metadata {
+		if !strings.HasPrefix(k, "x-amz-meta-") {
+			return fmt.Errorf("invalid metadata key: %s, key must begins with prefix: 'x-amz-meta-'", k)
+		}
+	}
+
+	res, err := b.Head(path)
+	if err != nil {
+		return err
+	}
+	headers := res.Header
+	res.Body.Close()
+
+	for k, v := range metadata {
+		headers.Set(k, v)
+	}
+
+	for k, v := range map[string]string{
+		"x-amz-metadata-directive": "REPLACE",
+		"x-amz-copy-source":        amazonEscape("/" + b.Name + path),
+		"ContentType":              contentType,
+	} {
+		headers.Set(k, v)
+	}
+
+	req := &request{
+		method:  "PUT",
+		bucket:  b.Name,
+		path:    path,
+		headers: headers,
+	}
+
+	err = b.S3.prepare(req)
 	if err != nil {
 		return err
 	}
