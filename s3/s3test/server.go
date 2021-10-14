@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"github.com/mitchellh/goamz/s3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/baishan-development-guizhou/goamz/s3"
 )
 
 const debug = false

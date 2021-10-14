@@ -20,10 +20,11 @@ package sns
 
 import (
 	"encoding/xml"
-	"github.com/mitchellh/goamz/aws"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/baishan-development-guizhou/goamz/aws"
 )
 
 // The SNS type encapsulates operation with an SNS region.

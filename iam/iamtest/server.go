@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/mitchellh/goamz/iam"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/baishan-development-guizhou/goamz/iam"
 )
 
 type action struct {

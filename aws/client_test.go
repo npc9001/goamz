@@ -2,13 +2,14 @@ package aws_test
 
 import (
 	"fmt"
-	"github.com/mitchellh/goamz/aws"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/baishan-development-guizhou/goamz/aws"
 )
 
 // Retrieve the response from handler using aws.RetryingClient

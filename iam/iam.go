@@ -4,12 +4,13 @@ package iam
 
 import (
 	"encoding/xml"
-	"github.com/mitchellh/goamz/aws"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/baishan-development-guizhou/goamz/aws"
 )
 
 // The IAM type encapsulates operations operations with the IAM endpoint.

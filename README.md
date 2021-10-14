@@ -1,6 +1,6 @@
 # goamz - An Amazon Library for Go 
 
-Current API documentation: [![GoDoc](https://godoc.org/github.com/mitchellh/goamz?status.svg)](https://godoc.org/github.com/mitchellh/goamz)
+Current API documentation: [![GoDoc](https://godoc.org/github.com/baishan-development-guizhou/goamz?status.svg)](https://godoc.org/github.com/baishan-development-guizhou/goamz)
 
 This is a fork of [https://launchpad.net/goamz](https://launchpad.net/goamz)
 that adds some missing API calls to certain packages.
@@ -10,7 +10,7 @@ It is heavily used in projects such as
 [Terraform](https://github.com/hashicorp/terraform) and
 [Packer](https://github.com/mitchellh/packer). 
 If you find anything missing from this library, 
-please [file an issue](https://github.com/mitchellh/goamz).
+please [file an issue](https://github.com/baishan-development-guizhou/goamz).
 
 ## Example Usage
 
@@ -18,8 +18,8 @@ please [file an issue](https://github.com/mitchellh/goamz).
 package main
 
 import (
-  "github.com/mitchellh/goamz/aws"
-  "github.com/mitchellh/goamz/s3"
+  "github.com/baishan-development-guizhou/goamz/aws"
+  "github.com/baishan-development-guizhou/goamz/s3"
   "log"
   "fmt"
 )
