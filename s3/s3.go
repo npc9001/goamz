@@ -453,7 +453,7 @@ func (b *Bucket) UpdateMetadata(path string, metadata map[string]string, remainO
 		path = "/" + path
 	}
 
-	var headers http.Header
+	headers := http.Header{}
 
 	if remainOldMeta {
 		res, err := b.Head(path)
