@@ -750,6 +750,12 @@ func (b *Bucket) GetACL(path string) (*Key, error) {
 
 // Get metadata from the key without returning the key content
 func (b *Bucket) GetKey(path string) (*Key, error) {
+	k, _, err := b.GetKeyWithHeader(path)
+	return k, err
+}
+
+// Get metadata and headers from the key without returning the key content
+func (b *Bucket) GetKeyWithHeader(path string) (*Key, http.Header, error) {
 	req := &request{
 		bucket: b.Name,
 		path:   path,
@@ -757,7 +763,7 @@ func (b *Bucket) GetKey(path string) (*Key, error) {
 	}
 	err := b.S3.prepare(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	key := &Key{}
 	for attempt := attempts.Start(); attempt.Next(); {
@@ -766,7 +772,7 @@ func (b *Bucket) GetKey(path string) (*Key, error) {
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		resp.Body.Close()
 		key.Key = path
@@ -774,12 +780,13 @@ func (b *Bucket) GetKey(path string) (*Key, error) {
 		key.ETag = resp.Header.Get("ETag")
 		contentLength := resp.Header.Get("X-Amz-Meta-S2-Size")
 		size, err := strconv.ParseInt(contentLength, 10, 64)
+		header := resp.Header.Clone()
 		if err != nil {
-			return key, fmt.Errorf("bad s3 content-length %v: %v",
+			return key, header, fmt.Errorf("bad s3 content-length %v: %v",
 				contentLength, err)
 		}
 		key.Size = size
-		return key, nil
+		return key, header, nil
 	}
 	panic("unreachable")
 }
