@@ -109,7 +109,9 @@ func (b *Bucket) InitMulti(key string, contType string, perm ACL) (*Multi, error
 	headers := map[string][]string{
 		"Content-Type":   {contType},
 		"Content-Length": {"0"},
-		"x-amz-acl":      {string(perm)},
+	}
+	if perm != nil {
+		headers["x-amz-acl"] = []string{string(perm)}
 	}
 	params := map[string][]string{
 		"uploads": {""},
