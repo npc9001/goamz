@@ -746,8 +746,13 @@ func (b *Bucket) GetACL(path string) (*Key, error) {
 		contentLength := resp.Header.Get("X-Amz-Meta-S2-Size")
 		size, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
-			return key, fmt.Errorf("bad s3 content-length %v: %v",
-				contentLength, err)
+			// The metadata `X-Amz-Meta-S2-Size` is baishancloud s2's specifical data, aws s2 may not have that. use content-length when X-Amz-Meta-S2-Size is null
+			contentLength = resp.Header.Get("Content-Length")
+			size, err = strconv.ParseInt(contentLength, 10, 64)
+			if err != nil {
+				return key, fmt.Errorf("bad s3 content-length %v: %v",
+					contentLength, err)
+			}
 		}
 
 		key.Size = size
@@ -790,8 +795,13 @@ func (b *Bucket) GetKeyWithHeader(path string) (*Key, http.Header, error) {
 		size, err := strconv.ParseInt(contentLength, 10, 64)
 		header := resp.Header.Clone()
 		if err != nil {
-			return key, header, fmt.Errorf("bad s3 content-length %v: %v",
-				contentLength, err)
+			// The metadata `X-Amz-Meta-S2-Size` is baishancloud s2's specifical data, aws s2 may not have that. use content-length when X-Amz-Meta-S2-Size is null
+			contentLength = resp.Header.Get("Content-Length")
+			size, err = strconv.ParseInt(contentLength, 10, 64)
+			if err != nil {
+				return key, header, fmt.Errorf("bad s3 content-length %v: %v",
+					contentLength, err)
+			}
 		}
 		key.Size = size
 		return key, header, nil
