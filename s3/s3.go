@@ -141,9 +141,11 @@ func (s3 *S3) ListBuckets() (result *ListBucketsResp, err error) {
 //
 // See http://goo.gl/ndjnR for details.
 func (b *Bucket) PutBucket(perm ACL) error {
-	headers := map[string][]string{
-		"x-amz-acl": {string(perm)},
+	headers := map[string][]string{}
+	if perm != "" {
+		headers["x-amz-acl"] = []string{string(perm)}
 	}
+
 	req := &request{
 		method:  "PUT",
 		bucket:  b.Name,
@@ -295,7 +297,9 @@ func (b *Bucket) PutReader(path string, r io.Reader, length int64, contType stri
 	headers := map[string][]string{
 		"Content-Length": {strconv.FormatInt(length, 10)},
 		"Content-Type":   {contType},
-		"x-amz-acl":      {string(perm)},
+	}
+	if perm != "" {
+		headers["x-amz-acl"] = []string{string(perm)}
 	}
 	req := &request{
 		method:  "PUT",
@@ -316,9 +320,11 @@ func (b *Bucket) PutReaderHeader(path string, r io.Reader, length int64, customH
 	headers := map[string][]string{
 		"Content-Length": {strconv.FormatInt(length, 10)},
 		"Content-Type":   {"application/text"},
-		"x-amz-acl":      {string(perm)},
 	}
 
+	if perm != "" {
+		headers["x-amz-acl"] = []string{string(perm)}
+	}
 	// Override with custom headers
 	for key, value := range customHeaders {
 		headers[key] = value
@@ -341,15 +347,17 @@ func (b *Bucket) Copy(oldPath, newPath string, perm ACL) error {
 	if !strings.HasPrefix(oldPath, "/") {
 		oldPath = "/" + oldPath
 	}
-
+	headers := map[string][]string{
+		"x-amz-copy-source": {amazonEscape("/" + b.Name + oldPath)},
+	}
+	if perm != "" {
+		headers["x-amz-acl"] = []string{string(perm)}
+	}
 	req := &request{
-		method: "PUT",
-		bucket: b.Name,
-		path:   newPath,
-		headers: map[string][]string{
-			"x-amz-copy-source": {amazonEscape("/" + b.Name + oldPath)},
-			"x-amz-acl":         {string(perm)},
-		},
+		method:  "PUT",
+		bucket:  b.Name,
+		path:    newPath,
+		headers: headers,
 	}
 
 	err := b.S3.prepare(req)
